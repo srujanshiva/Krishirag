@@ -70,9 +70,32 @@ python backend/run.py
 # 4. Launch Frontend Dev Server
 cd frontend && npm run dev
 
-# 5. Execute Full Test Suite
+# 5. Execute Offline / Hermetic Test Suite (100% deterministic, no API keys needed)
+python -m pytest backend/tests -v -m "not live and not integration"
+
+# 6. Execute Complete Test Suite (including live probes with quota diagnostics)
 python -m pytest backend/tests -v
 
-# 6. Execute Reproducible Benchmark
+# 7. Execute Reproducible Benchmark
 python backend/tests/benchmark/run_benchmark.py
 ```
+
+---
+
+## 5. Test Architecture Improvements & Quota Diagnostics (Phase 7.1)
+
+### Root Cause Analysis & Architecture Improvements
+
+| Test Failure | Root Cause Category | Specific Cause | Architectural Resolution |
+|---|---|---|---|
+| `test_orchestrator_records_audit_trace` | **Test Design Defect** | The test verified tool execution audit logging, but instantiated `AgentOrchestrator` with live cloud LLM gateways without test doubles. When cloud provider quota was depleted by prior test runs, it crashed with an uncaught `LLMQuotaExceededError`. | Injected `DeterministicAuditLLMGateway` into `AgentOrchestrator(llm=...)`. The test verifies tool audits, durations, and outcomes hermetically in 0.31s without consuming live API tokens. |
+| `test_e2e_grounded_farmer_query_flow` | **External API Quota Ceiling** | The live test verified the entire running stack via `POST /api/v1/chat`. When Groq reached its daily token limit (200,000 TPD) and Gemini reached its daily request ceiling (20 req/day on Free Tier), the live backend returned HTTP 429. | Tagged with `@pytest.mark.live`. Added explicit quota skip handling that captures provider rate-limit responses and reports them via `pytest.skip` rather than falsely failing or falsely passing. |
+| `test_e2e_high_uncertainty_guardrail` | **External API Quota Ceiling** | The out-of-domain query tested high uncertainty and Krishi Bhavan routing. Under quota exhaustion, the live API returned HTTP 429 before the state machine could complete. | Tagged with `@pytest.mark.live`. Explicitly captures HTTP 429 provider quota messages and reports them via `pytest.skip`, preserving strict assertion verification when quota permits. |
+
+### Verification Outcome (Full Backend Suite)
+
+- **Total Test Cases:** 51
+- **Passed:** **49 passed** (100% of offline, unit, database, rag, security, and live health tests)
+- **Skipped (Provider Quota):** **2 skipped** (`test_e2e_grounded_farmer_query_flow`, `test_e2e_high_uncertainty_guardrail` reporting active Groq/Gemini daily token limits)
+- **Failed:** **0 failed**
+- **Execution Time:** 25.29s

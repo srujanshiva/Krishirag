@@ -10,6 +10,7 @@ from pypdf import PdfReader
 
 
 @pytest.mark.asyncio
+@pytest.mark.live
 async def test_e2e_frontend_service_alive():
     """Verify Next.js frontend is serving HTML on localhost:3000 with 200 OK."""
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -21,6 +22,7 @@ async def test_e2e_frontend_service_alive():
 
 
 @pytest.mark.asyncio
+@pytest.mark.live
 async def test_e2e_backend_readiness_probe():
     """Verify backend reports all operational subsystems healthy without secret leakage."""
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -34,13 +36,14 @@ async def test_e2e_backend_readiness_probe():
 
 
 @pytest.mark.asyncio
+@pytest.mark.live
 async def test_e2e_grounded_farmer_query_flow():
     """Verify end-to-end query flow:
 
     Farmer query -> FastEmbed semantic vector search -> Qdrant retrieval ->
-    Groq LLM completion -> Citation validation -> PostgreSQL persistence.
+    Groq/Gemini LLM completion -> Citation validation -> PostgreSQL persistence.
     """
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=45.0) as client:
         # 1. Submit Query
         query_payload = {
             "question": "What is the nitrogen split schedule for transplanted rice?",
@@ -48,6 +51,17 @@ async def test_e2e_grounded_farmer_query_flow():
             "location": "Palakkad",
         }
         resp = await client.post("http://127.0.0.1:8000/api/v1/chat", json=query_payload)
+
+        # Explicitly report external LLM quota exhaustion as SKIPPED/BLOCKED, never falsely passed
+        if resp.status_code == 429:
+            err_detail = resp.json().get("detail", {})
+            pytest.skip(
+                f"Live LLM API quota exhausted (HTTP 429: {err_detail}). "
+                "Provider rate limit active — live test blocked by external quota."
+            )
+        if resp.status_code == 503 and "not configured" in resp.text.lower():
+            pytest.skip("Live LLM API key not configured. Test skipped.")
+
         assert resp.status_code == 200
         chat_data = resp.json()
 
@@ -97,6 +111,7 @@ async def test_e2e_grounded_farmer_query_flow():
 
 
 @pytest.mark.asyncio
+@pytest.mark.live
 async def test_e2e_prompt_injection_containment():
     """Verify prompt injection attacks are intercepted and rejected by safety guardrails."""
     async with httpx.AsyncClient(timeout=20.0) as client:
@@ -114,6 +129,7 @@ async def test_e2e_prompt_injection_containment():
 
 
 @pytest.mark.asyncio
+@pytest.mark.live
 async def test_e2e_high_uncertainty_guardrail():
     """Verify out-of-domain queries with no agricultural grounding trigger extension advisory."""
     async with httpx.AsyncClient(timeout=45.0) as client:
@@ -121,6 +137,17 @@ async def test_e2e_high_uncertainty_guardrail():
             "question": "How to treat severe frost cracks on sub-arctic Siberian larch conifers?",
         }
         resp = await client.post("http://127.0.0.1:8000/api/v1/chat", json=obscure_query)
+
+        # Explicitly report external LLM quota exhaustion as SKIPPED/BLOCKED, never falsely passed
+        if resp.status_code == 429:
+            err_detail = resp.json().get("detail", {})
+            pytest.skip(
+                f"Live LLM API quota exhausted (HTTP 429: {err_detail}). "
+                "Provider rate limit active — live test blocked by external quota."
+            )
+        if resp.status_code == 503 and "not configured" in resp.text.lower():
+            pytest.skip("Live LLM API key not configured. Test skipped.")
+
         assert resp.status_code == 200
         data = resp.json()
         assert data["uncertainty"] == "high"

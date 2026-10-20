@@ -1,9 +1,9 @@
-"""Security and safety tests for prompt injection and bounded orchestrator termination."""
-
 import pytest
+from typing import List
 
 from backend.app.agent.orchestrator import AgentOrchestrator, AgentState
 from backend.app.agent.safety import PromptSafetyGuard
+from backend.app.llm.gateway import LLMGateway, LLMResponse
 from backend.app.rag.retriever import RetrievedChunk
 
 
@@ -92,10 +92,27 @@ async def test_orchestrator_hard_iteration_limit():
     assert result.uncertainty == "high"
 
 
+class DeterministicAuditLLMGateway(LLMGateway):
+    """Deterministic LLM gateway test double ensuring audit test runs without exhausting live API quotas."""
+
+    async def complete(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        context_chunks: List[RetrievedChunk],
+    ) -> LLMResponse:
+        cited = f"[{context_chunks[0].chunk_id}]" if context_chunks else ""
+        return LLMResponse(
+            content=f"Transplanted rice spacing recommendation is 20x10 cm {cited}.",
+            model_used="deterministic-audit-test",
+            provider="test",
+        )
+
+
 @pytest.mark.asyncio
 async def test_orchestrator_records_audit_trace():
     """Verify orchestrator maintains audit logs of tool executions."""
-    orchestrator = AgentOrchestrator()
+    orchestrator = AgentOrchestrator(llm=DeterministicAuditLLMGateway())
     result = await orchestrator.run("What is the spacing for transplanted rice?", crop="Rice")
 
     assert len(result.audit_trace) >= 1
