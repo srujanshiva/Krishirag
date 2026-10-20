@@ -1,0 +1,41 @@
+﻿# Environment / secrets - NEVER COMMIT
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# fastembed model cache (large binary files)
+.fastembed_cache/
+
+# Node / frontend
+node_modules/
+.next/
+.nuxt/
+dist/
+frontend/.env
+frontend/.env.local
+
+# Docker
+*.pid
+
+# OS
+.DS_Store
+Thumbs.db
