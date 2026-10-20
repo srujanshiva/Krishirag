@@ -98,6 +98,7 @@ async def test_chat_grounded_response_with_citations(async_client: AsyncClient):
 async def test_chat_empty_kb_uncertainty_guardrail(async_client: AsyncClient, monkeypatch):
     """Verify query with no evidence returns high uncertainty and extension advisory."""
     from backend.app.api.v1.chat import retriever
+
     monkeypatch.setattr(retriever, "retrieve", lambda *args, **kwargs: [])
 
     response = await async_client.post(

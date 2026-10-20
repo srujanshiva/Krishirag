@@ -75,3 +75,7 @@ class AgriculturalRetriever:
         except Exception as e:
             logger.error(f"Error during retrieval for query '{query[:60]}...': {e}")
             return []
+
+
+# Default singleton instance
+retriever = AgriculturalRetriever()

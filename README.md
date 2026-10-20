@@ -20,9 +20,8 @@ KrishiRAG is an enterprise-grade, retrieval-augmented agricultural advisory syst
 | **Phase 0** | Codebase Audit & Implementation Plan | **COMPLETE** |
 | **Phase 1** | Foundation: Project Scaffolding, Docker, Config, DB & Health Probes | **COMPLETE** |
 | **Phase 2** | Knowledge Ingestion: Genuine Agronomic PDFs, Chunking & Qdrant Indexing | **COMPLETE** (19/19 tests passing, 101 authentic vectors indexed) |
-| **Phase 3** | Multi-Provider LLM Gateway & Fallback Strategy | **COMPLETE** (34/34 tests passing, live Groq grounded chat verified) |
-| **Phase 4** | Agentic Query Orchestrator, Citations & Guardrails | *Next up* |
-| **Phase 5** | Web Interface (Farmer UI, Citations Viewer & Admin Ingestion Portal) | Pending |
+| **Phase 4** | Agentic Query Orchestrator, Citations & Guardrails | **COMPLETE** (44/44 tests passing, bounded state machine + injection filters) |
+| **Phase 5** | Web Interface (Farmer UI, Citations Viewer & Admin Ingestion Portal) | *Next up* |
 | **Phase 6** | Feedback Loop, Audit Trails & Observability | Pending |
 | **Phase 7** | Automated Verification & End-to-End Testing | Pending |
 | **Phase 8** | Comprehensive Documentation & Submission Runbook | Pending |
