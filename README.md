@@ -23,7 +23,21 @@ KrishiRAG is an enterprise-grade, retrieval-augmented agricultural advisory syst
 | **Phase 4** | Agentic Query Orchestrator, Citations & Guardrails | **COMPLETE** (44/44 tests passing, bounded state machine + injection filters) |
 | **Phase 5** | Web Interface (Farmer UI, Citations Viewer & Admin Ingestion Portal) | **COMPLETE** (Next.js 16 App Router UI, live citations inspector) |
 | **Phase 7** | Automated E2E Verification & Benchmark Suite | **COMPLETE** (5/5 live E2E passing, 10/10 benchmark tests passing, 0% hallucination) |
-| **Phase 8** | Comprehensive Documentation & Submission Runbook | *Next up* |
+| **Phase 8** | Final Project Audit, Readiness Assessment & Documentation Suite | **COMPLETE** (49/49 hermetic tests passing, 2 quota skips, complete audit report) |
+
+---
+
+## Documentation Suite
+
+Comprehensive technical, agronomic, and architectural documentation is available in the `docs/` directory:
+
+- [Final Audit Report](docs/FINAL_AUDIT_REPORT.md) — Exhaustive system audit, verification evidence, test metrics, and readiness assessment.
+- [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) — Greenfield development roadmap and requirements traceability matrix.
+- [Architecture Specification](docs/ARCHITECTURE.md) — System topology, state machine diagrams, data schemas, and security boundaries.
+- [Benchmark Report](docs/BENCHMARK_REPORT.md) — 10-query empirical benchmark, latencies, retrieval scores, and guardrail validations.
+- [Data Sources Register](docs/DATA_SOURCES.md) — Provenance, checksums, and license notes for authoritative government agricultural manuals.
+- [Decisions Record](docs/DECISIONS.md) — Architectural decision records (ADRs) covering technology choices, embedding selection, and rate limits.
+- [Environment Runbook](docs/ENVIRONMENT.md) — Configuration variable specifications, Docker operations, and Windows runtime policies.
 
 ---
 
@@ -75,6 +89,8 @@ python -m alembic upgrade head
 ```bash
 python backend/run.py
 ```
+> **Note for Windows users:** Always run the backend via `python backend/run.py`. This script automatically configures `asyncio.WindowsSelectorEventLoopPolicy`, which is required for `psycopg` asynchronous connection pooling on Windows.
+
 - Interactive Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
 - Liveness Probe: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 - Readiness Probe: [http://localhost:8000/api/v1/ready](http://localhost:8000/api/v1/ready)
