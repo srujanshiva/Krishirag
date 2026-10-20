@@ -144,7 +144,7 @@ class GroqGateway(LLMGateway):
                 model=self.model,
                 messages=messages,
                 temperature=0.2,
-                max_tokens=1000,
+                max_tokens=500,
             )
 
             if not resp.choices or not resp.choices[0].message.content:
@@ -182,7 +182,7 @@ class GeminiGateway(LLMGateway):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model_name: str = "gemini-2.5-pro",
+        model_name: str = "gemini-3.5-flash",
         timeout: Optional[int] = None,
     ):
         self.api_key = api_key or settings.GOOGLE_API_KEY
@@ -201,19 +201,29 @@ class GeminiGateway(LLMGateway):
         user_prompt: str,
         context_chunks: List[RetrievedChunk],
     ) -> LLMResponse:
-        if not self.model:
+        if not self.api_key or self.api_key.startswith("YOUR_"):
             raise LLMNotConfiguredError("Google Gemini API key is not configured in environment.")
 
-        prompt_with_context = f"{system_prompt}\n\n" + build_grounded_user_prompt(
-            user_prompt, context_chunks
-        )
+        grounded_prompt = build_grounded_user_prompt(user_prompt, context_chunks)
 
         try:
-            # Run in thread pool to avoid blocking async event loop
-            loop = asyncio.get_event_loop()
+            import functools
+
+            # Configure generative model with explicit system instruction for citation grounding
+            model = genai.GenerativeModel(
+                self.model_name,
+                system_instruction=system_prompt,
+            )
+
+            gen_func = functools.partial(
+                model.generate_content,
+                grounded_prompt,
+                generation_config={"max_output_tokens": 2048, "temperature": 0.2},
+            )
+            loop = asyncio.get_running_loop()
             resp = await asyncio.wait_for(
-                loop.run_in_executor(None, self.model.generate_content, prompt_with_context),
-                timeout=float(self.timeout),
+                loop.run_in_executor(None, gen_func),
+                timeout=55.0,
             )
 
             if not resp or not resp.text:
@@ -234,15 +244,19 @@ class GeminiGateway(LLMGateway):
 
 
 class MultiProviderLLMGateway(LLMGateway):
-    """Coordinates primary (Groq) and fallback (Gemini) providers with transparent failover."""
+    """Coordinates primary and fallback providers with transparent failover."""
 
     def __init__(
         self,
         primary: Optional[LLMGateway] = None,
         fallback: Optional[LLMGateway] = None,
     ):
-        self.primary = primary or GroqGateway()
-        self.fallback = fallback or GeminiGateway()
+        if settings.LLM_PROVIDER.lower() == "gemini":
+            self.primary = primary or GeminiGateway()
+            self.fallback = fallback or GroqGateway()
+        else:
+            self.primary = primary or GroqGateway()
+            self.fallback = fallback or GeminiGateway()
 
     async def complete(
         self,

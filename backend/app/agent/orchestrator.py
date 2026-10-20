@@ -62,7 +62,7 @@ class AgentOrchestrator:
         self,
         llm: Optional[LLMGateway] = None,
         max_iterations: int = 10,
-        max_wall_seconds: float = 45.0,
+        max_wall_seconds: float = 75.0,
     ):
         self.llm = llm or get_llm_gateway()
         self.max_iterations = max_iterations

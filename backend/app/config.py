@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
     LLM_MODEL: str = "qwen/qwen3.8-27b"
-    LLM_TIMEOUT_SECONDS: int = 30
+    LLM_TIMEOUT_SECONDS: int = 15
     LLM_MAX_RETRIES: int = 2
 
     # Embeddings

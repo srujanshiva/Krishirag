@@ -68,3 +68,38 @@ async def test_admin_list_jobs_and_documents(async_client: AsyncClient):
     docs_resp = await async_client.get("/api/v1/admin/documents", headers=headers)
     assert docs_resp.status_code == 200
     assert isinstance(docs_resp.json(), list)
+
+
+@pytest.mark.asyncio
+async def test_admin_upload_rejects_non_pdf(async_client: AsyncClient):
+    """Verify admin endpoints reject non-PDF files (e.g. scripts or binaries)."""
+    headers = {"Authorization": f"Bearer {settings.ADMIN_TOKEN}"}
+    fake_exe_bytes = b"MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xff"
+    files = {"file": ("malicious.exe", io.BytesIO(fake_exe_bytes), "application/octet-stream")}
+    data = {"title": "Exploit Attempt", "publisher": "Attacker"}
+
+    response = await async_client.post(
+        "/api/v1/admin/ingest-file",
+        headers=headers,
+        files=files,
+        data=data,
+    )
+    assert response.status_code == 400
+    assert "Invalid file format" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_admin_upload_rejects_empty_file(async_client: AsyncClient):
+    """Verify admin endpoints reject zero-byte empty uploads."""
+    headers = {"Authorization": f"Bearer {settings.ADMIN_TOKEN}"}
+    files = {"file": ("empty.pdf", io.BytesIO(b""), "application/pdf")}
+    data = {"title": "Empty Doc", "publisher": "Test"}
+
+    response = await async_client.post(
+        "/api/v1/admin/ingest-file",
+        headers=headers,
+        files=files,
+        data=data,
+    )
+    assert response.status_code == 400
+    assert "Uploaded file is empty" in response.json()["detail"]

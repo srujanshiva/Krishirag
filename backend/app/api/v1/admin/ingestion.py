@@ -85,6 +85,50 @@ async def _run_url_ingestion(
             logger.error(f"Background URL ingestion failed for job {job_id}: {e}")
 
 
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+
+
+@router.post(
+    "/ingest-file",
+    response_model=IngestionJobResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def ingest_file_direct(
+    file: UploadFile = File(...),
+    title: str = Form(...),
+    publisher: Optional[str] = Form(None),
+    source_url: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(verify_admin_token),
+):
+    """Synchronous file ingestion for immediate validation and chunk indexing."""
+    file_bytes = await file.read()
+    if len(file_bytes) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is empty.",
+        )
+    if len(file_bytes) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="File too large. Maximum allowed size is 50MB.",
+        )
+    if not file_bytes.startswith(b"%PDF"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file format. Uploaded file must be a valid PDF document.",
+        )
+
+    job = await pipeline.ingest_file(
+        pdf_bytes=file_bytes,
+        title=title,
+        db=db,
+        publisher=publisher,
+        source_url=source_url,
+    )
+    return job
+
+
 @router.post(
     "/ingestion-jobs",
     response_model=IngestionJobResponse,
@@ -117,6 +161,22 @@ async def create_ingestion_job(
 
     if file:
         file_bytes = await file.read()
+        if len(file_bytes) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Uploaded file is empty.",
+            )
+        if len(file_bytes) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="File too large. Maximum allowed size is 50MB.",
+            )
+        if not file_bytes.startswith(b"%PDF"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid file format. Uploaded file must be a valid PDF document.",
+            )
+
         inferred_title = title or file.filename.replace(".pdf", "").replace("_", " ").title()
         background_tasks.add_task(
             _run_file_ingestion,
