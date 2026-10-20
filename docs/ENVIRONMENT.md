@@ -26,6 +26,11 @@ The application configuration is managed via `backend/app/config.py` using `pyda
 | `SECRET_KEY` | Yes | Secure random string | Application session encryption key. |
 | `ALLOWED_HOSTS` | No | `localhost,127.0.0.1` | Comma-delimited list of permitted host headers. |
 | `ADMIN_TOKEN` | Yes | `local-dev-admin-token` | Bearer token required for `/api/v1/admin/*` endpoints. |
+| `OLLAMA_BASE_URL` | No | `http://localhost:11434` | Ollama native service HTTP base URL. |
+| `OLLAMA_MODEL` | No | `qwen2.5:3b` | Target open-weight model tag pulled in Ollama. |
+| `OLLAMA_TIMEOUT_SECONDS` | No | `60` | Request timeout for local CPU inference. |
+| `ENABLE_LOCAL_LLM_FALLBACK` | No | `false` | Enable automatic failover to Ollama when cloud APIs hit 429. |
+| `OFFLINE_MODE` | No | `false` | Strictly prohibit cloud API calls; route only to local Ollama. |
 
 ---
 

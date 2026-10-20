@@ -26,13 +26,13 @@ KrishiRAG is designed as an enterprise-grade Retrieval-Augmented Generation (RAG
              +---------------------------+---------------------------+
              |                           |                           |
              v                           v                           v
-+------------------------+  +------------------------+  +------------------------+
-|  PostgreSQL 17 (DB)    |  |   Qdrant Vector DB     |  |   Cloud LLM Gateway    |
-|  - Documents Registry  |  |  - Cosine Distance     |  |  - Groq (Primary)      |
-|  - Ingestion Jobs      |  |  - 384-dim Vectors     |  |  - Gemini (Fallback)   |
-|  - Document Chunks     |  |  - Payload Metadata    |  |  - Bounded Retries     |
-|  - Conversations       |  +------------------------+  +------------------------+
-|  - Messages & Citations|               ^
++------------------------+  +------------------------+  +-------------------------------+
+|  PostgreSQL 17 (DB)    |  |   Qdrant Vector DB     |  |   Multi-Tier LLM Gateway      |
+|  - Documents Registry  |  |  - Cosine Distance     |  |  - Groq Cloud (Primary)       |
+|  - Ingestion Jobs      |  |  - 384-dim Vectors     |  |  - Gemini Cloud (Fallback)    |
+|  - Document Chunks     |  |  - Payload Metadata    |  |  - Ollama Local (Offline/Fail)|
+|  - Conversations       |  +------------------------+  |    (Qwen 2.5 3B Open-Weight)  |
+|  - Messages & Citations|               ^              +-------------------------------+
 |  - Farmer Feedback     |               | (FastEmbed BAAI/bge-small-en-v1.5)
 +------------------------+               |
              ^                           |

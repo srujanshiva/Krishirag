@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     LLM_TIMEOUT_SECONDS: int = 15
     LLM_MAX_RETRIES: int = 2
 
+    # Local LLM Gateway (Ollama — Optional)
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL: str = "qwen2.5:3b"
+    OLLAMA_TIMEOUT_SECONDS: int = 60
+    ENABLE_LOCAL_LLM_FALLBACK: bool = False
+    OFFLINE_MODE: bool = False
+
     # Embeddings
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
 

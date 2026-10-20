@@ -47,3 +47,13 @@
 - **Context:** On Windows operating systems, Python 3.8+ uses `ProactorEventLoop` by default, which does not support asynchronous socket operations required by `psycopg` connection pools.
 - **Decision:** Explicitly set `asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())` in `backend/run.py` and test initialization scripts.
 - **Consequences:** Clean, error-free PostgreSQL async operations on Windows platforms.
+
+### ADR-09: Optional Local LLM Integration (Ollama + Qwen 2.5 3B)
+- **Context:** Free cloud LLM APIs impose strict daily token caps (Groq: 200,000 TPD; Gemini: 20 req/day). When these ceilings are reached, live testing and demonstrations stall with HTTP 429 errors.
+- **Decision:** Add native Ollama support as an optional local provider (`OllamaGateway`) utilizing `qwen2.5:3b` (Q4_K_M quantization).
+- **Consequences:** Provides completely free, zero-token, private local inference on CPU with ~10–14 tokens/sec throughput, while preserving existing cloud providers as configurable defaults.
+
+### ADR-10: Explicit OFFLINE_MODE Containment
+- **Context:** Air-gapped or offline agricultural deployments require absolute guarantees that queries and data are never transmitted over the internet to cloud APIs.
+- **Decision:** Implement strict `OFFLINE_MODE=true` behavior inside `MultiProviderLLMGateway`. When enabled, the gateway initializes solely with `OllamaGateway` and raises an explicit error if local inference fails, strictly preventing any silent fallback to cloud APIs.
+- **Consequences:** Guaranteed data sovereignty and privacy for sensitive or air-gapped environments.

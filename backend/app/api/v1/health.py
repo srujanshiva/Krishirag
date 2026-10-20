@@ -46,9 +46,32 @@ async def get_readiness(db: AsyncSession = Depends(get_db)):
     except Exception:
         qdrant_status = "error"
 
-    # 3. Check LLM Configuration (Groq or Gemini)
+    # 3. Check LLM Configuration (Groq, Gemini, or Ollama)
     llm_configured = False
-    if settings.LLM_PROVIDER == "groq" and settings.GROQ_API_KEY:
+    local_llm_status = "disabled"
+
+    # Optional local LLM probe
+    if settings.ENABLE_LOCAL_LLM_FALLBACK or settings.LLM_PROVIDER == "ollama" or settings.OFFLINE_MODE:
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                r = await client.get(f"{settings.OLLAMA_BASE_URL.rstrip('/')}/api/tags")
+                if r.status_code == 200:
+                    models = [m.get("name", "") for m in r.json().get("models", [])]
+                    if any(settings.OLLAMA_MODEL in m for m in models):
+                        local_llm_status = "ready"
+                    else:
+                        local_llm_status = "model_missing"
+                else:
+                    local_llm_status = "error"
+        except Exception:
+            local_llm_status = "unreachable"
+
+    if settings.OFFLINE_MODE:
+        # In offline mode, LLM is only configured if local LLM is ready
+        llm_configured = (local_llm_status == "ready")
+    elif settings.LLM_PROVIDER == "ollama":
+        llm_configured = (local_llm_status == "ready")
+    elif settings.LLM_PROVIDER == "groq" and settings.GROQ_API_KEY:
         if not settings.GROQ_API_KEY.startswith("YOUR_"):
             llm_configured = True
     elif settings.LLM_PROVIDER in ("gemini", "google") and settings.GOOGLE_API_KEY:
@@ -72,4 +95,6 @@ async def get_readiness(db: AsyncSession = Depends(get_db)):
         "vector_store": qdrant_status,
         "llm_configured": llm_configured,
         "knowledge_base": kb_status,
+        "local_llm": local_llm_status,
+        "offline_mode": settings.OFFLINE_MODE,
     }

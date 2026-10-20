@@ -24,6 +24,7 @@ KrishiRAG is an enterprise-grade, retrieval-augmented agricultural advisory syst
 | **Phase 5** | Web Interface (Farmer UI, Citations Viewer & Admin Ingestion Portal) | **COMPLETE** (Next.js 16 App Router UI, live citations inspector) |
 | **Phase 7** | Automated E2E Verification & Benchmark Suite | **COMPLETE** (5/5 live E2E passing, 10/10 benchmark tests passing, 0% hallucination) |
 | **Phase 8** | Final Project Audit, Readiness Assessment & Documentation Suite | **COMPLETE** (49/49 hermetic tests passing, 2 quota skips, complete audit report) |
+| **Phase 9** | Optional Local LLM Integration (Ollama + Qwen 2.5 3B) | **CODE COMPLETE (Awaiting Installation Approval)** |
 
 ---
 
@@ -47,8 +48,9 @@ Comprehensive technical, agronomic, and architectural documentation is available
 - **Database & ORM:** PostgreSQL 17 (via Docker Compose) + SQLAlchemy 2.0 + Alembic
 - **Vector Database:** Qdrant (via Docker Compose)
 - **Embeddings:** `fastembed` with `BAAI/bge-small-en-v1.5` (local ONNX runtime, 384 dimensions)
-- **Primary LLM:** Groq API (`qwen/qwen3.8-27b`)
-- **Fallback LLM:** Google Gemini API (`gemini-1.5-flash`)
+- **Primary Cloud LLM:** Groq API (`qwen/qwen3.8-27b`)
+- **Fallback Cloud LLM:** Google Gemini API (`gemini-1.5-flash`)
+- **Optional Local LLM:** Ollama native Windows service (`qwen2.5:3b`, zero-token offline inference)
 - **Testing:** Pytest, pytest-asyncio, httpx
 
 ---

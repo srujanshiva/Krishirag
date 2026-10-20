@@ -243,20 +243,18 @@ class GeminiGateway(LLMGateway):
             raise LLMException(err_str, "GEMINI_ERROR", 500)
 
 
-class MultiProviderLLMGateway(LLMGateway):
-    """Coordinates primary and fallback providers with transparent failover."""
+class OllamaGateway(LLMGateway):
+    """Local LLM gateway utilizing Ollama native service."""
 
     def __init__(
         self,
-        primary: Optional[LLMGateway] = None,
-        fallback: Optional[LLMGateway] = None,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None,
+        timeout: Optional[int] = None,
     ):
-        if settings.LLM_PROVIDER.lower() == "gemini":
-            self.primary = primary or GeminiGateway()
-            self.fallback = fallback or GroqGateway()
-        else:
-            self.primary = primary or GroqGateway()
-            self.fallback = fallback or GeminiGateway()
+        self.base_url = (base_url or settings.OLLAMA_BASE_URL).rstrip("/")
+        self.model = model or settings.OLLAMA_MODEL
+        self.timeout = timeout or settings.OLLAMA_TIMEOUT_SECONDS
 
     async def complete(
         self,
@@ -264,20 +262,176 @@ class MultiProviderLLMGateway(LLMGateway):
         user_prompt: str,
         context_chunks: List[RetrievedChunk],
     ) -> LLMResponse:
-        # Try primary provider first
+        import httpx
+
+        prompt_with_context = build_grounded_user_prompt(user_prompt, context_chunks)
+        payload = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt_with_context},
+            ],
+            "stream": False,
+            "options": {
+                "temperature": 0.2,
+                "num_predict": 512,
+            },
+        }
+
+        url = f"{self.base_url}/api/chat"
         try:
-            return await self.primary.complete(system_prompt, user_prompt, context_chunks)
-        except (LLMQuotaExceededError, LLMTimeoutError, LLMNotConfiguredError) as primary_err:
-            logger.warning(
-                f"Primary LLM ({self.primary.__class__.__name__}) failed ({primary_err.error_code}). "
-                f"Attempting fallback ({self.fallback.__class__.__name__})..."
+            async with httpx.AsyncClient(timeout=float(self.timeout)) as client:
+                resp = await client.post(url, json=payload)
+
+            if resp.status_code == 404:
+                err_data = {}
+                try:
+                    err_data = resp.json()
+                except Exception:
+                    pass
+                err_msg = err_data.get("error", resp.text)
+                raise LLMNotConfiguredError(
+                    f"Ollama model '{self.model}' not found or endpoint unavailable: {err_msg}. "
+                    f"Run: ollama pull {self.model}"
+                )
+            elif resp.status_code != 200:
+                raise LLMException(
+                    f"Ollama server returned error (HTTP {resp.status_code}): {resp.text}",
+                    "OLLAMA_ERROR",
+                    resp.status_code,
+                )
+
+            data = resp.json()
+            message_obj = data.get("message", {})
+            content = message_obj.get("content", "").strip()
+
+            if not content:
+                raise LLMInvalidResponseError("Ollama returned an empty completion response.")
+
+            prompt_tok = data.get("prompt_eval_count")
+            comp_tok = data.get("eval_count")
+
+            return LLMResponse(
+                content=content,
+                model_used=self.model,
+                provider="ollama",
+                prompt_tokens=prompt_tok,
+                completion_tokens=comp_tok,
             )
+
+        except httpx.ConnectError as e:
+            logger.warning(f"Ollama daemon connection failed at {self.base_url}: {e}")
+            raise LLMNotConfiguredError(
+                f"Ollama daemon is not running at {self.base_url}. Please ensure Ollama service is active."
+            )
+        except httpx.TimeoutException as e:
+            logger.warning(f"Ollama request timed out after {self.timeout}s: {e}")
+            raise LLMTimeoutError(f"Ollama local inference request timed out after {self.timeout}s.")
+        except LLMException:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected Ollama gateway error: {e}")
+            raise LLMException(str(e), "OLLAMA_ERROR", 500)
+
+
+class MultiProviderLLMGateway(LLMGateway):
+    """Coordinates primary and fallback providers with transparent failover and offline mode enforcement."""
+
+    def __init__(
+        self,
+        providers: Optional[List[LLMGateway]] = None,
+        primary: Optional[LLMGateway] = None,
+        fallback: Optional[LLMGateway] = None,
+    ):
+        if providers is not None:
+            self.providers = providers
+            return
+
+        # If explicit primary / fallback passed (e.g. in unit tests)
+        if primary is not None:
+            self.providers = [primary]
+            if fallback is not None:
+                self.providers.append(fallback)
+            return
+
+        chain: List[LLMGateway] = []
+
+        # 1. Strict OFFLINE_MODE enforcement: Only local provider allowed.
+        if settings.OFFLINE_MODE:
+            chain.append(OllamaGateway())
+            self.providers = chain
+            return
+
+        # 2. Build provider chain based on LLM_PROVIDER
+        configured_provider = settings.LLM_PROVIDER.lower().strip()
+        if configured_provider == "ollama":
+            chain.append(OllamaGateway())
+            if settings.ENABLE_LOCAL_LLM_FALLBACK:
+                chain.append(GroqGateway())
+                chain.append(GeminiGateway())
+        elif configured_provider in ("gemini", "google"):
+            chain.append(GeminiGateway())
+            chain.append(GroqGateway())
+            if settings.ENABLE_LOCAL_LLM_FALLBACK:
+                chain.append(OllamaGateway())
+        else:  # default: "groq"
+            chain.append(GroqGateway())
+            chain.append(GeminiGateway())
+            if settings.ENABLE_LOCAL_LLM_FALLBACK:
+                chain.append(OllamaGateway())
+
+        self.providers = chain
+
+    @property
+    def primary(self) -> Optional[LLMGateway]:
+        return self.providers[0] if self.providers else None
+
+    @property
+    def fallback(self) -> Optional[LLMGateway]:
+        return self.providers[1] if len(self.providers) > 1 else None
+
+    async def complete(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        context_chunks: List[RetrievedChunk],
+    ) -> LLMResponse:
+        if not self.providers:
+            raise LLMNotConfiguredError("No LLM providers are configured.")
+
+        # In OFFLINE_MODE, verify NO cloud provider is ever called
+        if settings.OFFLINE_MODE:
+            first_provider = self.providers[0]
+            if not isinstance(first_provider, OllamaGateway):
+                raise LLMNotConfiguredError(
+                    "OFFLINE_MODE is enabled but active provider is not a local gateway (Ollama)."
+                )
+            return await first_provider.complete(system_prompt, user_prompt, context_chunks)
+
+        last_error = None
+        for i, provider in enumerate(self.providers):
             try:
-                return await self.fallback.complete(system_prompt, user_prompt, context_chunks)
-            except Exception as fallback_err:
-                logger.error(f"Fallback LLM also failed: {fallback_err}")
-                # Raise the primary error for clean client diagnostics
-                raise primary_err
+                return await provider.complete(system_prompt, user_prompt, context_chunks)
+            except (LLMQuotaExceededError, LLMTimeoutError, LLMNotConfiguredError) as err:
+                last_error = err
+                next_provider = self.providers[i + 1] if i + 1 < len(self.providers) else None
+                if next_provider:
+                    logger.warning(
+                        f"Provider {provider.__class__.__name__} failed ({err.error_code}). "
+                        f"Attempting failover to {next_provider.__class__.__name__}..."
+                    )
+                else:
+                    logger.error(f"All configured LLM providers failed. Last error: {err}")
+            except Exception as e:
+                logger.error(f"Provider {provider.__class__.__name__} error: {e}")
+                last_error = e
+                next_provider = self.providers[i + 1] if i + 1 < len(self.providers) else None
+                if next_provider:
+                    logger.warning(f"Attempting failover to {next_provider.__class__.__name__}...")
+
+        if isinstance(last_error, LLMException):
+            raise last_error
+        raise LLMException(str(last_error or "All providers failed"), "ALL_PROVIDERS_FAILED", 500)
 
 
 DEFAULT_SYSTEM_PROMPT = """You are KrishiRAG, an authoritative AI Agricultural Advisory System for Indian farmers.
