@@ -1,6 +1,6 @@
 # KrishiRAG — Implementation Plan (UPDATED)
 **CSE 473 · SIH25076 · AI-Based Farmer Query Support and Advisory System**
-**Audit date:** 2026-10-20 · **Updated:** 2026-10-20 · **Status:** Phase 2 COMPLETE — ready for Phase 3
+**Audit date:** 2026-10-20 · **Updated:** 2026-10-20 · **Status:** Phase 3 COMPLETE — ready for Phase 4
 
 ---
 
@@ -389,7 +389,8 @@ GET /api/v1/admin/ingestion-jobs/{id}
 
 ---
 
-### Phase 3 — RAG + Real LLM Gateway + Citation Validation
+### Phase 3 — RAG + Real LLM Gateway + Citation Validation [COMPLETE]
+**Executed:** 2026-10-20 · **Status:** PASSED (34/34 tests green, live Groq grounded chat verified)
 
 **Scope:** Retrieval from Qdrant, Groq LLM gateway (OpenAI-compatible client),
 grounded prompt, citation ID validation, uncertainty handling.
@@ -478,12 +479,12 @@ Error handling:
 ```
 
 **Acceptance criteria:**
-- Real question + populated KB -> grounded answer, all citation IDs from retrieved chunks only
-- Empty KB -> uncertainty "high", answer text recommends KVK/officer, citations []
-- LLM key missing -> HTTP 503, error_code LLM_NOT_CONFIGURED
-- Model-invented citation ID -> stripped from response, logged
-- pytest tests/rag/test_retrieval.py tests/unit/test_citation_validator.py tests/api/test_chat.py — GREEN (no LLM key needed for most)
-- pytest -m integration tests/integration/test_llm_gateway.py — GREEN (requires GROQ_API_KEY)
+- [x] Real question + populated KB -> grounded answer, all citation IDs from retrieved chunks only (verified with live Groq query)
+- [x] Empty KB -> uncertainty "high", answer text recommends KVK/officer, citations [] (verified in `test_chat_empty_kb_uncertainty_guardrail`)
+- [x] LLM key missing -> HTTP 503, error_code LLM_NOT_CONFIGURED (verified in `test_chat_llm_not_configured_error`)
+- [x] Model-invented citation ID -> stripped from response, logged (verified in `test_validator_strips_hallucinated_citations`)
+- [x] pytest tests/rag/test_retrieval.py tests/unit/test_citation_validator.py tests/api/test_chat.py — GREEN (34 passed, 0 failed)
+- [x] pytest -m integration tests/integration/test_llm_gateway.py — GREEN (live Groq API verified)
 
 ---
 
