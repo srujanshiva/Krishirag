@@ -2,6 +2,7 @@
 
 import httpx
 from fastapi import APIRouter, Depends, status
+from loguru import logger
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.config import settings
@@ -31,7 +32,8 @@ async def get_readiness(db: AsyncSession = Depends(get_db)):
         res = await db.execute(text("SELECT 1"))
         if res.scalar() == 1:
             db_status = "ok"
-    except Exception:
+    except Exception as e:
+        logger.error(f"DB ready check error: {e}")
         db_status = "error"
 
     # 2. Check Qdrant Vector Store

@@ -21,8 +21,8 @@ KrishiRAG is an enterprise-grade, retrieval-augmented agricultural advisory syst
 | **Phase 1** | Foundation: Project Scaffolding, Docker, Config, DB & Health Probes | **COMPLETE** |
 | **Phase 2** | Knowledge Ingestion: Genuine Agronomic PDFs, Chunking & Qdrant Indexing | **COMPLETE** (19/19 tests passing, 101 authentic vectors indexed) |
 | **Phase 4** | Agentic Query Orchestrator, Citations & Guardrails | **COMPLETE** (44/44 tests passing, bounded state machine + injection filters) |
-| **Phase 5** | Web Interface (Farmer UI, Citations Viewer & Admin Ingestion Portal) | *Next up* |
-| **Phase 6** | Feedback Loop, Audit Trails & Observability | Pending |
+| **Phase 5** | Web Interface (Farmer UI, Citations Viewer & Admin Ingestion Portal) | **COMPLETE** (Next.js 16 App Router UI, live citations inspector) |
+| **Phase 6** | Feedback Loop, Audit Trails & Observability | *Next up* |
 | **Phase 7** | Automated Verification & End-to-End Testing | Pending |
 | **Phase 8** | Comprehensive Documentation & Submission Runbook | Pending |
 
@@ -74,13 +74,20 @@ python -m alembic upgrade head
 
 ### 5. Run Backend Server
 ```bash
-python -m uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+python backend/run.py
 ```
 - Interactive Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
 - Liveness Probe: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 - Readiness Probe: [http://localhost:8000/api/v1/ready](http://localhost:8000/api/v1/ready)
 
-### 6. Run Test Suite
+### 6. Run Frontend Web Interface
+```bash
+cd frontend
+npm run dev
+```
+- Web Application: [http://localhost:3000](http://localhost:3000)
+
+### 7. Run Test Suite
 ```bash
 python -m pytest backend/tests -v
 ```
