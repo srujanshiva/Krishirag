@@ -64,9 +64,24 @@ class LLMGateway(ABC):
         system_prompt: str,
         user_prompt: str,
         context_chunks: List[RetrievedChunk],
+        conversation_history: Optional[List[dict]] = None,
     ) -> LLMResponse:
-        """Execute chat completion with grounded reference chunks."""
+        """Execute chat completion with grounded reference chunks and optional conversation history."""
         pass
+
+
+def detect_query_language(text: str) -> Optional[str]:
+    """Detect Indian regional script in query text."""
+    import re
+    if re.search(r"[\u0C00-\u0C7F]", text):
+        return "Telugu (తెలుగు)"
+    elif re.search(r"[\u0900-\u097F]", text):
+        return "Hindi (हिन्दी)"
+    elif re.search(r"[\u0B80-\u0BFF]", text):
+        return "Tamil (தமிழ்)"
+    elif re.search(r"[\u0D00-\u0D7F]", text):
+        return "Malayalam (മലയാളം)"
+    return None
 
 
 def build_grounded_user_prompt(
@@ -94,9 +109,18 @@ def build_grounded_user_prompt(
     if location:
         query_details += f"Location context: {location}\n"
 
+    detected_lang = detect_query_language(user_query)
+    lang_directive = ""
+    if detected_lang:
+        lang_directive = (
+            f"\nLANGUAGE REQUIREMENT: The farmer's inquiry is submitted in {detected_lang}. "
+            f"You MUST generate your entire advisory response in the exact same language and script ({detected_lang}). "
+            "Maintain technical precision for chemical names and dosages, and cite all source references using [1], [2] (or [chunk_id]).\n"
+        )
+
     instructions = (
-        "\nProvide an actionable, grounded advisory response answering the farmer's question. "
-        "Reference citations using [chunk_id] directly after each recommendation or fact taken from that passage."
+        f"\nProvide an actionable, grounded advisory response answering the farmer's question.{lang_directive} "
+        "Reference citations using [1], [2], etc. (or [chunk_id]) directly after each recommendation or fact taken from that passage."
     )
 
     return f"{context_text}\n{query_details}\n{instructions}"
@@ -129,6 +153,7 @@ class GroqGateway(LLMGateway):
         system_prompt: str,
         user_prompt: str,
         context_chunks: List[RetrievedChunk],
+        conversation_history: Optional[List[dict]] = None,
     ) -> LLMResponse:
         if not self.client:
             raise LLMNotConfiguredError("Groq API key is not configured in environment.")
@@ -136,8 +161,12 @@ class GroqGateway(LLMGateway):
         prompt_with_context = build_grounded_user_prompt(user_prompt, context_chunks)
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt_with_context},
         ]
+        if conversation_history:
+            for turn in conversation_history[-4:]:
+                if turn.get("role") in ("user", "assistant") and turn.get("content"):
+                    messages.append({"role": turn["role"], "content": turn["content"]})
+        messages.append({"role": "user", "content": prompt_with_context})
 
         try:
             resp = await self.client.chat.completions.create(
@@ -172,6 +201,10 @@ class GroqGateway(LLMGateway):
             logger.warning(f"Groq request timed out: {e}")
             raise LLMTimeoutError(str(e))
         except Exception as e:
+            err_str = str(e)
+            if "rate_limit_exceeded" in err_str or "413" in err_str or "tokens per minute" in err_str:
+                logger.warning(f"Groq rate/token limit exceeded: {e}")
+                raise LLMQuotaExceededError(err_str)
             logger.error(f"Groq API error: {e}")
             raise LLMException(str(e), "GROQ_ERROR", 500)
 
@@ -200,11 +233,18 @@ class GeminiGateway(LLMGateway):
         system_prompt: str,
         user_prompt: str,
         context_chunks: List[RetrievedChunk],
+        conversation_history: Optional[List[dict]] = None,
     ) -> LLMResponse:
         if not self.api_key or self.api_key.startswith("YOUR_"):
             raise LLMNotConfiguredError("Google Gemini API key is not configured in environment.")
 
         grounded_prompt = build_grounded_user_prompt(user_prompt, context_chunks)
+        if conversation_history:
+            history_text = "RECENT CONVERSATION HISTORY:\n"
+            for turn in conversation_history[-4:]:
+                role = "Farmer" if turn.get("role") == "user" else "Advisory"
+                history_text += f"{role}: {turn.get('content', '')}\n"
+            grounded_prompt = f"{history_text}\n{grounded_prompt}"
 
         try:
             import functools
@@ -223,7 +263,7 @@ class GeminiGateway(LLMGateway):
             loop = asyncio.get_running_loop()
             resp = await asyncio.wait_for(
                 loop.run_in_executor(None, gen_func),
-                timeout=55.0,
+                timeout=float(self.timeout),
             )
 
             if not resp or not resp.text:
@@ -261,16 +301,22 @@ class OllamaGateway(LLMGateway):
         system_prompt: str,
         user_prompt: str,
         context_chunks: List[RetrievedChunk],
+        conversation_history: Optional[List[dict]] = None,
     ) -> LLMResponse:
         import httpx
 
         prompt_with_context = build_grounded_user_prompt(user_prompt, context_chunks)
+        messages = [
+            {"role": "system", "content": system_prompt},
+        ]
+        if conversation_history:
+            for turn in conversation_history[-4:]:
+                if turn.get("role") in ("user", "assistant") and turn.get("content"):
+                    messages.append({"role": turn["role"], "content": turn["content"]})
+        messages.append({"role": "user", "content": prompt_with_context})
         payload = {
             "model": self.model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt_with_context},
-            ],
+            "messages": messages,
             "stream": False,
             "options": {
                 "temperature": 0.2,
@@ -395,6 +441,7 @@ class MultiProviderLLMGateway(LLMGateway):
         system_prompt: str,
         user_prompt: str,
         context_chunks: List[RetrievedChunk],
+        conversation_history: Optional[List[dict]] = None,
     ) -> LLMResponse:
         if not self.providers:
             raise LLMNotConfiguredError("No LLM providers are configured.")
@@ -406,12 +453,16 @@ class MultiProviderLLMGateway(LLMGateway):
                 raise LLMNotConfiguredError(
                     "OFFLINE_MODE is enabled but active provider is not a local gateway (Ollama)."
                 )
-            return await first_provider.complete(system_prompt, user_prompt, context_chunks)
+            return await first_provider.complete(
+                system_prompt, user_prompt, context_chunks, conversation_history=conversation_history
+            )
 
         last_error = None
         for i, provider in enumerate(self.providers):
             try:
-                return await provider.complete(system_prompt, user_prompt, context_chunks)
+                return await provider.complete(
+                    system_prompt, user_prompt, context_chunks, conversation_history=conversation_history
+                )
             except (LLMQuotaExceededError, LLMTimeoutError, LLMNotConfiguredError) as err:
                 last_error = err
                 next_provider = self.providers[i + 1] if i + 1 < len(self.providers) else None
@@ -439,7 +490,7 @@ Your mission is to provide accurate, grounded agronomic recommendations based st
 
 CRITICAL RULES:
 1. Base your answer ONLY on the provided context passages. Never fabricate chemical names, application rates, or dosages.
-2. For EVERY claim, recommendation, or number you provide, cite the source chunk using the exact format [chunk_id].
+2. For EVERY claim, recommendation, or number you provide, cite the source passage using [1], [2] (or [chunk_id]).
 3. If the provided context does not contain enough evidence to answer the farmer's question safely, clearly state: "The verified agricultural manuals do not contain sufficient evidence to answer this question. Please consult your local Krishi Bhavan, KVK, or an agricultural extension officer."
 4. Be concise, direct, and structured.
 """

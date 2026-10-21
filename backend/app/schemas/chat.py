@@ -27,6 +27,10 @@ class ChatRequest(BaseModel):
         None,
         description="Optional location / district context (e.g. Palakkad, Thrissur)",
     )
+    image_data: Optional[str] = Field(
+        None,
+        description="Optional base64-encoded leaf or crop image for visual disease diagnostics",
+    )
 
 
 class ChatResponse(BaseModel):
@@ -41,6 +45,12 @@ class ChatResponse(BaseModel):
     message_id: uuid.UUID
     retrieval_score: Optional[float] = None
     evidence_count: int
+    weather: Optional[dict] = Field(None, description="Optional real-time agrometeorological forecast")
+    faithfulness: Optional[dict] = Field(None, description="Algorithmic claim-level faithfulness and grounding report")
+    chemical_safety: Optional[dict] = Field(None, description="Pre-harvest interval (PHI) and CIBRC chemical safety report")
+    dosage_calculation: Optional[dict] = Field(None, description="Optional scientific commercial fertilizer bag calculation tailored to farmer acreage")
+    visual_diagnostic: Optional[dict] = Field(None, description="Optional visual symptom analysis and leaf disease screening report")
+
 
 
 class MessageResponse(BaseModel):

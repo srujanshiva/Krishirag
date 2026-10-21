@@ -8,9 +8,9 @@ from loguru import logger
 from backend.app.rag.retriever import RetrievedChunk
 from backend.app.schemas.citations import CitationResponse
 
-# Pattern matching citation markers like [UUID], [chunk_id], [chunk: id]
+# Pattern matching citation markers like [1], [2], [Passage 1], [Source 1], [UUID], [chunk_id], [chunk: id]
 CITATION_PATTERN = re.compile(
-    r"\[(?:chunk[:\s]*)?([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}|[a-zA-Z0-9_\-:]{6,64})\]",
+    r"\[(?:(?:chunk|passage|source)[:\s]*)?([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}|\d{1,2}|[a-zA-Z0-9_\-:]{6,64})\]",
     re.IGNORECASE,
 )
 
@@ -46,6 +46,21 @@ class CitationValidator:
             full_match = match.group(0)
             cand_id = match.group(1).strip()
 
+            # 1. Handle numeric surrogate indices (e.g. [1], [2], [Passage 1])
+            if cand_id.isdigit():
+                idx = int(cand_id)
+                if 1 <= idx <= len(retrieved_chunks):
+                    matched_chunk = retrieved_chunks[idx - 1]
+                    accepted_chunk_ids.add(matched_chunk.chunk_id)
+                    return full_match
+                else:
+                    stripped_count += 1
+                    logger.warning(
+                        f"Stripping out-of-range surrogate citation index '[{cand_id}]' (retrieved {len(retrieved_chunks)} passages)."
+                    )
+                    return ""
+
+            # 2. Handle UUID or chunk ID citations
             if cand_id in valid_chunks_map:
                 accepted_chunk_ids.add(cand_id)
                 return full_match  # Keep valid citation in text

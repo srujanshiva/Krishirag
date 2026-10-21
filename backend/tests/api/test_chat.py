@@ -24,6 +24,8 @@ class MockGroundedLLMGateway(LLMGateway):
         system_prompt: str,
         user_prompt: str,
         context_chunks: List[RetrievedChunk],
+        *args,
+        **kwargs,
     ) -> LLMResponse:
         cited_id = context_chunks[0].chunk_id if context_chunks else "none"
         content = (
@@ -43,6 +45,8 @@ class MockUnconfiguredLLMGateway(LLMGateway):
         system_prompt: str,
         user_prompt: str,
         context_chunks: List[RetrievedChunk],
+        *args,
+        **kwargs,
     ) -> LLMResponse:
         raise LLMNotConfiguredError()
 
@@ -53,6 +57,8 @@ class MockQuotaExceededLLMGateway(LLMGateway):
         system_prompt: str,
         user_prompt: str,
         context_chunks: List[RetrievedChunk],
+        *args,
+        **kwargs,
     ) -> LLMResponse:
         raise LLMQuotaExceededError()
 

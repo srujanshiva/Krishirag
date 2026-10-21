@@ -8,6 +8,70 @@ export interface Citation {
   excerpt: string;
 }
 
+export interface WeatherData {
+  location: string;
+  temperature_c?: number | null;
+  humidity_percent?: number | null;
+  precipitation_mm?: number | null;
+  precipitation_prob_percent?: number | null;
+  wind_speed_kmh?: number | null;
+  condition?: string | null;
+  spraying_advisory?: string | null;
+  fieldwork_advisory?: string | null;
+}
+
+export interface ClaimVerification {
+  claim_text: string;
+  is_grounded: boolean;
+  confidence_score: number;
+  supporting_chunk_id?: string | null;
+  supporting_doc?: string | null;
+  supporting_page?: number | null;
+}
+
+export interface FaithfulnessData {
+  score: number;
+  faithfulness_percent: number;
+  total_claims: number;
+  grounded_claims: number;
+  unverified_claims: number;
+  claims?: ClaimVerification[];
+}
+
+export interface ChemicalSafetyData {
+  chemical: string;
+  crop?: string | null;
+  is_safe: boolean;
+  warning_level: "safe" | "caution" | "critical" | "banned";
+  phi_days: number;
+  toxicity_class: string;
+  mrl_ppm: number;
+  explanation: string;
+  alternative_recommended?: string | null;
+}
+
+export interface DosageCalculationData {
+  crop: string;
+  input_display: string;
+  area_hectares: number;
+  recommended_npk_ratio: string;
+  urea_kg: number;
+  dap_kg: number;
+  mop_kg: number;
+  application_splits: string[];
+  notes: string;
+}
+
+export interface VisualDiagnosticData {
+  crop: string;
+  symptoms_detected: string[];
+  suspected_diseases: string[];
+  confidence_score: number;
+  visual_features?: Record<string, any>;
+  immediate_action: string;
+  search_keywords: string[];
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -15,11 +79,17 @@ export interface ChatMessage {
   timestamp: string;
   crop?: string | null;
   location?: string | null;
+  image_data?: string | null;
   citations?: Citation[];
   uncertainty?: "none" | "low" | "high";
   retrieval_score?: number | null;
   evidence_count?: number;
   user_rating?: number | null;
+  weather?: WeatherData | null;
+  faithfulness?: FaithfulnessData | null;
+  chemical_safety?: ChemicalSafetyData | null;
+  dosage_calculation?: DosageCalculationData | null;
+  visual_diagnostic?: VisualDiagnosticData | null;
 }
 
 export interface ChatApiResponse {
@@ -31,6 +101,11 @@ export interface ChatApiResponse {
   message_id: string;
   retrieval_score?: number | null;
   evidence_count: number;
+  weather?: WeatherData | null;
+  faithfulness?: FaithfulnessData | null;
+  chemical_safety?: ChemicalSafetyData | null;
+  dosage_calculation?: DosageCalculationData | null;
+  visual_diagnostic?: VisualDiagnosticData | null;
 }
 
 export interface ReadinessResponse {

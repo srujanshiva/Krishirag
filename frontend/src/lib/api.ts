@@ -67,7 +67,8 @@ export const api = {
     question: string,
     conversationId?: string | null,
     crop?: string | null,
-    location?: string | null
+    location?: string | null,
+    imageData?: string | null
   ): Promise<ChatApiResponse> => {
     return request<ChatApiResponse>("/chat", {
       method: "POST",
@@ -76,6 +77,7 @@ export const api = {
         conversation_id: conversationId || null,
         crop: crop || null,
         location: location || null,
+        image_data: imageData || null,
       }),
     });
   },

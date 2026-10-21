@@ -85,3 +85,67 @@ def test_validator_excerpt_truncation():
     excerpt = validated.citations[0].excerpt
     assert len(excerpt) <= 305  # 300 + "..."
     assert excerpt.endswith("...")
+
+
+def test_validator_supports_surrogate_indices():
+    """Verify numeric surrogate indices [1], [2], [Passage 1] map correctly to chunks."""
+    c1_id = str(uuid.uuid4())
+    c2_id = str(uuid.uuid4())
+    chunk1 = RetrievedChunk(
+        chunk_id=c1_id,
+        document_title="TNAU Rice Guide",
+        publisher="TNAU",
+        source_url=None,
+        page_number=32,
+        section="SRI",
+        chunk_text="SRI requires 5 kg/ha seed rate.",
+        score=0.89,
+    )
+    chunk2 = RetrievedChunk(
+        chunk_id=c2_id,
+        document_title="TNAU Rice Guide",
+        publisher="TNAU",
+        source_url=None,
+        page_number=33,
+        section="SRI",
+        chunk_text="Square planting at 25x25 cm spacing is recommended.",
+        score=0.85,
+    )
+
+    raw_answer = (
+        "Use 5 kg/ha seed rate [1]. "
+        "Also maintain square planting at 25x25 cm [Passage 2]."
+    )
+    validated = CitationValidator.validate(raw_answer, [chunk1, chunk2])
+
+    assert validated.valid_count == 2
+    assert validated.stripped_count == 0
+    assert "[1]" in validated.cleaned_answer
+    assert "[Passage 2]" in validated.cleaned_answer
+    assert [c.chunk_id for c in validated.citations] == [c1_id, c2_id]
+    assert validated.citations[0].page_number == 32
+    assert validated.citations[1].page_number == 33
+
+
+def test_validator_strips_out_of_range_surrogate_indices():
+    """Verify out-of-range surrogate indices like [99] are stripped cleanly."""
+    c1_id = str(uuid.uuid4())
+    chunk1 = RetrievedChunk(
+        chunk_id=c1_id,
+        document_title="Guide",
+        publisher="SAU",
+        source_url=None,
+        page_number=1,
+        section="Intro",
+        chunk_text="Legitimate content.",
+        score=0.8,
+    )
+
+    raw_answer = "Valid recommendation [1]. Fabricated recommendation [99]."
+    validated = CitationValidator.validate(raw_answer, [chunk1])
+
+    assert validated.valid_count == 1
+    assert validated.stripped_count == 1
+    assert "[1]" in validated.cleaned_answer
+    assert "[99]" not in validated.cleaned_answer
+    assert [c.chunk_id for c in validated.citations] == [c1_id]

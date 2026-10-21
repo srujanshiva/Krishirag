@@ -10,6 +10,8 @@ import {
   Sparkles,
   HelpCircle,
   FileText,
+  Calculator,
+  ArrowRight,
 } from "lucide-react";
 import { Header } from "../components/Header";
 import { ChatInput } from "../components/ChatInput";
@@ -36,7 +38,14 @@ export default function Home() {
     question: string;
     crop?: string;
     location?: string;
+    imageData?: string;
   } | null>(null);
+
+  // Sidebar Land Area Dosage Calculator State
+  const [calcCrop, setCalcCrop] = useState("Rice");
+  const [calcArea, setCalcArea] = useState("2");
+  const [calcUnit, setCalcUnit] = useState("acre");
+
 
   // Poll readiness status once on load
   const checkReadiness = async () => {
@@ -58,9 +67,43 @@ export default function Home() {
     document.documentElement.setAttribute("data-theme", nextTheme);
   };
 
-  const handleSendQuery = async (question: string, crop?: string, location?: string) => {
+  const getEstimatedBags = () => {
+    const val = parseFloat(calcArea) || 0;
+    if (val <= 0) return { urea: "0.0", dap: "0.0", mop: "0.0" };
+    if (calcCrop === "Coconut") {
+      return {
+        urea: (val * 1.1 / 45).toFixed(1),
+        dap: (val * 0.7 / 50).toFixed(1),
+        mop: (val * 2.0 / 50).toFixed(1),
+      };
+    }
+    let ha = val / 2.47105;
+    if (calcUnit === "cent") ha = (val / 100) / 2.47105;
+    else if (calcUnit === "guntha") ha = (val / 40) / 2.47105;
+    else if (calcUnit === "hectare") ha = val;
+
+    if (calcCrop === "Rice") {
+      return {
+        urea: (140 * ha / 45).toFixed(1),
+        dap: (87 * ha / 50).toFixed(1),
+        mop: (67 * ha / 50).toFixed(1),
+      };
+    }
+    return {
+      urea: (120 * ha / 45).toFixed(1),
+      dap: (76 * ha / 50).toFixed(1),
+      mop: (58 * ha / 50).toFixed(1),
+    };
+  };
+
+  const handleSendQuery = async (
+    question: string,
+    crop?: string,
+    location?: string,
+    imageData?: string
+  ) => {
     setApiError(null);
-    setLastQuery({ question, crop, location });
+    setLastQuery({ question, crop, location, imageData });
 
     const userMessage: ChatMessage = {
       id: "temp-" + Date.now(),
@@ -69,13 +112,14 @@ export default function Home() {
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       crop,
       location,
+      image_data: imageData,
     };
 
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
     try {
-      const res = await api.sendQuery(question, conversationId, crop, location);
+      const res = await api.sendQuery(question, conversationId, crop, location, imageData);
 
       if (!conversationId && res.conversation_id) {
         setConversationId(res.conversation_id);
@@ -90,6 +134,11 @@ export default function Home() {
         uncertainty: res.uncertainty,
         retrieval_score: res.retrieval_score,
         evidence_count: res.evidence_count,
+        weather: res.weather,
+        faithfulness: res.faithfulness,
+        chemical_safety: res.chemical_safety,
+        dosage_calculation: res.dosage_calculation,
+        visual_diagnostic: res.visual_diagnostic,
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -132,6 +181,104 @@ export default function Home() {
                 >
                   <RotateCcw size={13} />
                   <span>New Query Session</span>
+                </button>
+              </div>
+
+              {/* Quick Land Area Fertilizer Calculator Tool */}
+              <div style={styles.calculatorCard}>
+                <div style={styles.calcTitleRow}>
+                  <Calculator size={15} color="#15803d" />
+                  <span style={styles.calcTitleText}>Land Area Fertilizer Tool</span>
+                </div>
+                <p style={styles.calcDesc}>
+                  Convert farmer acreage to commercial fertilizer bags (Urea, DAP, MOP):
+                </p>
+
+                <div style={styles.calcInputRow}>
+                  <select
+                    id="select-calc-crop"
+                    value={calcCrop}
+                    onChange={(e) => {
+                      setCalcCrop(e.target.value);
+                      if (e.target.value === "Coconut") setCalcUnit("palms");
+                      else if (calcUnit === "palms") setCalcUnit("acre");
+                    }}
+                    style={styles.calcSelect}
+                  >
+                    <option value="Rice">Rice (Paddy)</option>
+                    <option value="Coconut">Coconut</option>
+                    <option value="Black Pepper">Black Pepper</option>
+                    <option value="Maize">Maize (Corn)</option>
+                  </select>
+
+                  <div style={styles.calcAreaInputWrap}>
+                    <input
+                      id="input-calc-area"
+                      type="number"
+                      min="0.1"
+                      step="0.5"
+                      value={calcArea}
+                      onChange={(e) => setCalcArea(e.target.value)}
+                      style={styles.calcNumberInput}
+                    />
+                    <select
+                      id="select-calc-unit"
+                      value={calcUnit}
+                      onChange={(e) => setCalcUnit(e.target.value)}
+                      style={styles.calcUnitSelect}
+                    >
+                      {calcCrop === "Coconut" ? (
+                        <option value="palms">Palms</option>
+                      ) : calcCrop === "Black Pepper" ? (
+                        <>
+                          <option value="vines">Vines</option>
+                          <option value="acre">Acres</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="acre">Acres</option>
+                          <option value="cent">Cents</option>
+                          <option value="guntha">Gunthas</option>
+                          <option value="hectare">Hectares</option>
+                        </>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Instant Estimation Chips */}
+                {(() => {
+                  const est = getEstimatedBags();
+                  return (
+                    <div style={styles.calcResultsGrid}>
+                      <div style={styles.calcResultPill}>
+                        <span style={styles.calcPillLabel}>Urea (45kg):</span>
+                        <strong style={styles.calcPillVal}>{est.urea} Bags</strong>
+                      </div>
+                      <div style={styles.calcResultPill}>
+                        <span style={styles.calcPillLabel}>DAP (50kg):</span>
+                        <strong style={styles.calcPillVal}>{est.dap} Bags</strong>
+                      </div>
+                      <div style={styles.calcResultPill}>
+                        <span style={styles.calcPillLabel}>MOP (50kg):</span>
+                        <strong style={styles.calcPillVal}>{est.mop} Bags</strong>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <button
+                  type="button"
+                  id="btn-apply-calculator-query"
+                  onClick={() => {
+                    const prompt = `How many bags of fertilizer do I need for ${calcArea} ${calcUnit} of ${calcCrop}?`;
+                    handleSendQuery(prompt, calcCrop, "Palakkad");
+                  }}
+                  style={styles.calcAskBtn}
+                  title="Query KrishiRAG for detailed application splits and chemical safety"
+                >
+                  <span>Get Official POP Schedule</span>
+                  <ArrowRight size={13} />
                 </button>
               </div>
 
@@ -428,4 +575,105 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "0.85rem 1rem",
     boxShadow: "var(--shadow-sm)",
   },
+  calculatorCard: {
+    backgroundColor: "var(--bg-surface)",
+    borderRadius: "10px",
+    padding: "0.85rem",
+    border: "1px solid var(--border-subtle)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.5rem",
+    boxShadow: "var(--shadow-sm)",
+  },
+  calcTitleRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.4rem",
+  },
+  calcTitleText: {
+    fontSize: "0.82rem",
+    fontWeight: 700,
+    color: "var(--foreground)",
+  },
+  calcDesc: {
+    fontSize: "0.72rem",
+    color: "var(--foreground-muted)",
+    lineHeight: 1.35,
+    margin: 0,
+  },
+  calcInputRow: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.4rem",
+  },
+  calcSelect: {
+    width: "100%",
+    padding: "0.35rem 0.5rem",
+    fontSize: "0.76rem",
+    borderRadius: "6px",
+    border: "1px solid var(--border-strong)",
+    backgroundColor: "var(--bg-elevated)",
+    color: "var(--foreground)",
+  },
+  calcAreaInputWrap: {
+    display: "flex",
+    gap: "0.35rem",
+  },
+  calcNumberInput: {
+    width: "60px",
+    padding: "0.35rem 0.45rem",
+    fontSize: "0.76rem",
+    borderRadius: "6px",
+    border: "1px solid var(--border-strong)",
+    backgroundColor: "var(--bg-elevated)",
+    color: "var(--foreground)",
+  },
+  calcUnitSelect: {
+    flex: 1,
+    padding: "0.35rem 0.45rem",
+    fontSize: "0.76rem",
+    borderRadius: "6px",
+    border: "1px solid var(--border-strong)",
+    backgroundColor: "var(--bg-elevated)",
+    color: "var(--foreground)",
+  },
+  calcResultsGrid: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.25rem",
+    backgroundColor: "rgba(16, 185, 129, 0.06)",
+    padding: "0.45rem 0.6rem",
+    borderRadius: "6px",
+    border: "1px solid rgba(16, 185, 129, 0.2)",
+  },
+  calcResultPill: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    fontSize: "0.72rem",
+  },
+  calcPillLabel: {
+    color: "var(--foreground-muted)",
+  },
+  calcPillVal: {
+    color: "#059669",
+    fontWeight: 700,
+  },
+  calcAskBtn: {
+    marginTop: "0.2rem",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "0.35rem",
+    padding: "0.45rem 0.65rem",
+    borderRadius: "6px",
+    backgroundColor: "var(--emerald-600)",
+    color: "#ffffff",
+    border: "none",
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+  },
 };
+

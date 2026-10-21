@@ -16,6 +16,10 @@ INJECTION_PATTERNS = [
     re.compile(r"<\s*script[^>]*>.*?</\s*script\s*>", re.IGNORECASE | re.DOTALL),
     re.compile(r"bypass\s+(safety|content\s+filter|guardrails)", re.IGNORECASE),
     re.compile(r"jailbreak|DAN\s+mode|developer\s+mode", re.IGNORECASE),
+    re.compile(r"\b(bomb|explosives?|synthesize\s+explosives?)\b", re.IGNORECASE),
+    re.compile(r"\b(poison|poisoning)\b.*?\b(water|well|neighbor|tank|human)\b", re.IGNORECASE),
+    re.compile(r"\b(hack|exploit|malware)\b.*?\b(drone|telemetry|firmware|system)\b", re.IGNORECASE),
+    re.compile(r"override\s+(safety|rules?|restrictions?|protocols?)", re.IGNORECASE),
 ]
 
 

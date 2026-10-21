@@ -43,7 +43,7 @@ async def test_e2e_grounded_farmer_query_flow():
     Farmer query -> FastEmbed semantic vector search -> Qdrant retrieval ->
     Groq/Gemini LLM completion -> Citation validation -> PostgreSQL persistence.
     """
-    async with httpx.AsyncClient(timeout=45.0) as client:
+    async with httpx.AsyncClient(timeout=150.0) as client:
         # 1. Submit Query
         query_payload = {
             "question": "What is the nitrogen split schedule for transplanted rice?",
@@ -132,7 +132,7 @@ async def test_e2e_prompt_injection_containment():
 @pytest.mark.live
 async def test_e2e_high_uncertainty_guardrail():
     """Verify out-of-domain queries with no agricultural grounding trigger extension advisory."""
-    async with httpx.AsyncClient(timeout=45.0) as client:
+    async with httpx.AsyncClient(timeout=90.0) as client:
         obscure_query = {
             "question": "How to treat severe frost cracks on sub-arctic Siberian larch conifers?",
         }

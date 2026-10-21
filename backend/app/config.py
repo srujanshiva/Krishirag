@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # Local LLM Gateway (Ollama — Optional)
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "qwen2.5:3b"
-    OLLAMA_TIMEOUT_SECONDS: int = 60
+    OLLAMA_TIMEOUT_SECONDS: int = 120
     ENABLE_LOCAL_LLM_FALLBACK: bool = False
     OFFLINE_MODE: bool = False
 

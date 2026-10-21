@@ -1,5 +1,11 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  themeColor: "#0f766e",
+  width: "device-width",
+  initialScale: 1.0,
+};
 
 export const metadata: Metadata = {
   title: "KrishiRAG — AI-Based Farmer Query Support & Advisory System",
@@ -19,6 +25,7 @@ export const metadata: Metadata = {
     "TNAU",
   ],
   authors: [{ name: "KrishiRAG Team · CSE 473" }],
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
