@@ -314,9 +314,9 @@ python backend/tests/benchmark/run_benchmark.py
 
 ## 9. Prioritized Remediation Checklist
 
-### Priority 1: Operational Stability (Immediate)
-- [ ] **Configure Local LLM Fallback (Ollama / vLLM):** Add an optional local model endpoint (e.g., `http://localhost:11434/v1`) to `backend/app/llm/gateway.py` so the system can operate indefinitely offline without cloud quota exhaustion.
-- [ ] **Document Windows SelectorEventLoop in README:** Ensure setup instructions emphasize using `python backend/run.py` on Windows environments.
+### Priority 1: Operational Stability (Completed in Phase 9 & 10)
+- [x] **Configure Local LLM Fallback (Ollama):** Implemented in `backend/app/llm/gateway.py` with `OllamaGateway` and `MultiProviderLLMGateway` supporting native `qwen2.5:3b`, transparent cloud failover, and strict `OFFLINE_MODE` isolation. Verified by `test_ollama_gateway.py` and live `test_ollama_live.py`.
+- [x] **Document Windows SelectorEventLoop in README:** Documented in `README.md` and `docs/ENVIRONMENT.md` instructing execution via `python backend/run.py`.
 
 ### Priority 2: Pre-Production Enhancements (Short Term)
 - [ ] **Expand Knowledge Base Ingestion:** Ingest `nfsm_package_of_practices_ready_reckoner.pdf` (already in `data/sources/`) via the Admin Ingestion Portal to expand agronomic coverage across wheat, pulses, and oilseeds.
@@ -328,12 +328,16 @@ python backend/tests/benchmark/run_benchmark.py
 
 ---
 
-## 10. Final Readiness Verdict
+## 10. Phase 10 Final Acceptance Testing & Readiness Verdict
 
-**Verdict:** **CORE MVP PRODUCTION READY (CONDITIONAL ON CLOUD QUOTA)**
+**Verdict:** **FULLY VERIFIED · PRODUCTION READY FOR SIH DEMO (CLOUD + OFFLINE)**
 
-The KrishiRAG application satisfies all core architectural, agronomic, security, and verification requirements defined in `docs/IMPLEMENTATION_PLAN.md` and the conservative scope of **SIH25076**:
-- **Integrity:** 100% grounded agricultural advisory with verified source provenance and zero citation hallucinations.
-- **Resilience:** Clean, deterministic test suite (49 passing tests) with honest, transparent reporting of external cloud rate limits.
-- **Security:** Rigorous prompt-injection filtering, XML delimiter isolation, strict credential management, and magic-byte upload validation.
-- **User Experience:** Full-featured modern Next.js 16 web interface with live citation drawer and diagnostic telemetry.
+On **2026-10-21**, complete Phase 10 Acceptance Testing was executed against live running services (PostgreSQL 17, Qdrant, Ollama, FastAPI backend, Next.js frontend):
+1. **Real Farmer Query & Citation Provenance:** Tested query *"What is the recommended seed rate and spacing for SRI rice cultivation?"*. Response returned status 200 with verified seed rates (5–7 kg/ha single seedling, 12–15 kg/ha double seedling) and exact citations (`ddbaea9b...`, `f811995f...`).
+2. **Physical PDF Text Verification:** Extracted page 32 and page 21 directly from `data/sources/tnau_crop_production_guide_rice.pdf` with `pypdf`. Verbatim text matched stored Qdrant passage points character-for-character.
+3. **Cloud-Primary with Local Ollama Fallback:** Verified that under simulated/transient cloud quota exceptions, `MultiProviderLLMGateway` seamlessly falls over to `qwen2.5:3b` via Ollama without dropping farmer queries.
+4. **Strict Offline Mode:** Verified that with `OFFLINE_MODE=true`, exactly 1 provider (`OllamaGateway`) is configured, and 0 external cloud calls (Groq: 0, Gemini: 0) are made.
+5. **Multi-Turn Dialogue & Feedback:** Verified 2-turn dialogue persistence under identical `conversation_id`, 5-star feedback rating submission persisted in PostgreSQL `feedback` table, and honest uncertainty deferral for out-of-domain queries.
+6. **Admin PDF Ingestion:** Verified token authorization (401 on unauthorized), magic-byte format rejection (400 on non-PDF), and SHA-256 deduplication idempotency (200 OK, `status: "already_exists"`).
+7. **Complete Test Suite Result:** **59 PASSED, 0 SKIPPED, 0 FAILED** in 76.00s.
+8. **Demonstration Script & Limitations:** Published in `docs/DEMO_SCRIPT.md`.

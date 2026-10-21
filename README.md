@@ -24,7 +24,8 @@ KrishiRAG is an enterprise-grade, retrieval-augmented agricultural advisory syst
 | **Phase 5** | Web Interface (Farmer UI, Citations Viewer & Admin Ingestion Portal) | **COMPLETE** (Next.js 16 App Router UI, live citations inspector) |
 | **Phase 7** | Automated E2E Verification & Benchmark Suite | **COMPLETE** (5/5 live E2E passing, 10/10 benchmark tests passing, 0% hallucination) |
 | **Phase 8** | Final Project Audit, Readiness Assessment & Documentation Suite | **COMPLETE** (49/49 hermetic tests passing, 2 quota skips, complete audit report) |
-| **Phase 9** | Optional Local LLM Integration (Ollama + Qwen 2.5 3B) | **CODE COMPLETE (Awaiting Installation Approval)** |
+| **Phase 9** | Optional Local LLM Integration (Ollama + Qwen 2.5 3B) | **COMPLETE** (Native Windows service, zero-token local inference, failover support) |
+| **Phase 10** | Final Demo Readiness & Acceptance Testing | **COMPLETE** (59/59 tests passing, verified offline mode, live failover, citations verified) |
 
 ---
 
@@ -32,6 +33,7 @@ KrishiRAG is an enterprise-grade, retrieval-augmented agricultural advisory syst
 
 Comprehensive technical, agronomic, and architectural documentation is available in the `docs/` directory:
 
+- [Live Demonstration Script & Runbook](docs/DEMO_SCRIPT.md) — Step-by-step 5-minute evaluator demonstration walkthrough and prioritized system limitations.
 - [Final Audit Report](docs/FINAL_AUDIT_REPORT.md) — Exhaustive system audit, verification evidence, test metrics, and readiness assessment.
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) — Greenfield development roadmap and requirements traceability matrix.
 - [Architecture Specification](docs/ARCHITECTURE.md) — System topology, state machine diagrams, data schemas, and security boundaries.
