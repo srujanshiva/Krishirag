@@ -122,7 +122,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   dismissBtn: {
     border: "none",
-    background: "transparent",
+    backgroundColor: "transparent",
     color: "var(--text-muted)",
     fontSize: "0.78rem",
     cursor: "pointer",

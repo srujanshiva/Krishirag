@@ -790,7 +790,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   starBtn: {
     border: "none",
-    background: "transparent",
+    backgroundColor: "transparent",
     cursor: "pointer",
     padding: "0.15rem",
   },

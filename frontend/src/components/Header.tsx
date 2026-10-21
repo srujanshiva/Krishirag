@@ -191,7 +191,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "0.45rem 0.9rem",
     borderRadius: "8px",
     border: "none",
-    background: "transparent",
+    backgroundColor: "transparent",
     color: "var(--text-muted)",
     fontSize: "0.85rem",
     fontWeight: 600,

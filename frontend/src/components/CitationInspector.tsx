@@ -162,7 +162,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   closeBtn: {
     border: "none",
-    background: "transparent",
+    backgroundColor: "transparent",
     color: "var(--text-muted)",
     cursor: "pointer",
     padding: "0.3rem",
