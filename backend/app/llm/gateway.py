@@ -91,8 +91,12 @@ def build_grounded_user_prompt(
     location: Optional[str] = None,
 ) -> str:
     """Format user query with retrieved context passages and citation IDs."""
+    has_corpus = (
+        "verified_agricultural_reference_corpus" in user_query
+        or "VERIFIED AGRICULTURAL REFERENCE PASSAGES" in user_query
+    )
     context_text = ""
-    if context_chunks:
+    if context_chunks and not has_corpus:
         context_text = "VERIFIED AGRICULTURAL REFERENCE PASSAGES:\n"
         for i, chunk in enumerate(context_chunks, 1):
             context_text += (
@@ -100,7 +104,7 @@ def build_grounded_user_prompt(
                 f"Source: {chunk.document_title} (Publisher: {chunk.publisher}, Page: {chunk.page_number})\n"
                 f"{chunk.chunk_text}\n"
             )
-    else:
+    elif not context_chunks and not has_corpus:
         context_text = "No relevant context passages were found in the knowledge base.\n"
 
     query_details = f"Farmer Question: {user_query}\n"
@@ -168,45 +172,64 @@ class GroqGateway(LLMGateway):
                     messages.append({"role": turn["role"], "content": turn["content"]})
         messages.append({"role": "user", "content": prompt_with_context})
 
-        try:
-            resp = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0.2,
-                max_tokens=500,
-            )
+        models_to_try = [self.model]
+        for alt in ("openai/gpt-oss-20b", "allam-2-7b"):
+            if alt not in models_to_try:
+                models_to_try.append(alt)
 
-            if not resp.choices or not resp.choices[0].message.content:
-                raise LLMInvalidResponseError("Groq returned an empty completion response.")
+        last_error = None
+        for current_model in models_to_try:
+            try:
+                max_toks = 1000 if "gpt-oss" in current_model else 500
+                resp = await self.client.chat.completions.create(
+                    model=current_model,
+                    messages=messages,
+                    temperature=0.2,
+                    max_tokens=max_toks,
+                )
 
-            choice = resp.choices[0]
-            content = choice.message.content.strip()
+                if not resp.choices or not resp.choices[0].message.content:
+                    continue
 
-            usage = resp.usage
-            prompt_tok = usage.prompt_tokens if usage else None
-            comp_tok = usage.completion_tokens if usage else None
+                choice = resp.choices[0]
+                content = choice.message.content.strip()
 
-            return LLMResponse(
-                content=content,
-                model_used=self.model,
-                provider="groq",
-                prompt_tokens=prompt_tok,
-                completion_tokens=comp_tok,
-            )
+                usage = resp.usage
+                prompt_tok = usage.prompt_tokens if usage else None
+                comp_tok = usage.completion_tokens if usage else None
 
-        except RateLimitError as e:
-            logger.warning(f"Groq rate limit exceeded: {e}")
-            raise LLMQuotaExceededError(str(e))
-        except APITimeoutError as e:
-            logger.warning(f"Groq request timed out: {e}")
-            raise LLMTimeoutError(str(e))
-        except Exception as e:
-            err_str = str(e)
-            if "rate_limit_exceeded" in err_str or "413" in err_str or "tokens per minute" in err_str:
-                logger.warning(f"Groq rate/token limit exceeded: {e}")
-                raise LLMQuotaExceededError(err_str)
-            logger.error(f"Groq API error: {e}")
-            raise LLMException(str(e), "GROQ_ERROR", 500)
+                return LLMResponse(
+                    content=content,
+                    model_used=current_model,
+                    provider="groq",
+                    prompt_tokens=prompt_tok,
+                    completion_tokens=comp_tok,
+                )
+
+            except RateLimitError as e:
+                logger.warning(
+                    f"Groq model '{current_model}' rate limit reached. Attempting fast fallback model..."
+                )
+                last_error = LLMQuotaExceededError(str(e))
+                continue
+            except APITimeoutError as e:
+                logger.warning(f"Groq request for '{current_model}' timed out: {e}")
+                last_error = LLMTimeoutError(str(e))
+                continue
+            except Exception as e:
+                err_str = str(e)
+                if "rate_limit_exceeded" in err_str or "413" in err_str or "tokens per minute" in err_str:
+                    logger.warning(
+                        f"Groq model '{current_model}' quota exceeded. Attempting fast fallback model..."
+                    )
+                    last_error = LLMQuotaExceededError(err_str)
+                    continue
+                logger.error(f"Groq API error with model '{current_model}': {e}")
+                last_error = LLMException(str(e), "GROQ_ERROR", 500)
+
+        if last_error:
+            raise last_error
+        raise LLMInvalidResponseError("Groq returned an empty completion response across all candidate models.")
 
 
 class GeminiGateway(LLMGateway):
