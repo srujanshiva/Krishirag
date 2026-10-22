@@ -130,17 +130,17 @@ export const HealthDiagnostics: React.FC = () => {
             <span style={styles.metricKey}>Collection Status</span>
             <span
               style={
-                readiness?.vector_store === "connected" || readiness?.vector_store === "ok"
+                readiness?.vector_store === "connected"
                   ? styles.metricValGreen
                   : styles.metricValRed
               }
             >
-              {readiness?.vector_store === "connected" || readiness?.vector_store === "ok" ? (
+              {readiness?.vector_store === "connected" ? (
                 <CheckCircle size={14} />
               ) : (
                 <XCircle size={14} />
               )}
-              {readiness?.vector_store === "connected" || readiness?.vector_store === "ok"
+              {readiness?.vector_store === "connected"
                 ? "CONNECTED"
                 : readiness?.vector_store?.toUpperCase() || "CHECKING"}
             </span>
