@@ -93,11 +93,19 @@ export const HealthDiagnostics: React.FC = () => {
             <span style={styles.metricKey}>Connection</span>
             <span
               style={
-                readiness?.database === "connected" ? styles.metricValGreen : styles.metricValRed
+                readiness?.database === "connected" || (readiness as any)?.db === "ok"
+                  ? styles.metricValGreen
+                  : styles.metricValRed
               }
             >
-              {readiness?.database === "connected" ? <CheckCircle size={14} /> : <XCircle size={14} />}
-              {readiness?.database?.toUpperCase() || "CHECKING"}
+              {readiness?.database === "connected" || (readiness as any)?.db === "ok" ? (
+                <CheckCircle size={14} />
+              ) : (
+                <XCircle size={14} />
+              )}
+              {readiness?.database === "connected" || (readiness as any)?.db === "ok"
+                ? "CONNECTED"
+                : readiness?.database?.toUpperCase() || "CHECKING"}
             </span>
           </div>
           <div style={styles.metricRow}>
@@ -122,17 +130,19 @@ export const HealthDiagnostics: React.FC = () => {
             <span style={styles.metricKey}>Collection Status</span>
             <span
               style={
-                readiness?.vector_store === "connected"
+                readiness?.vector_store === "connected" || readiness?.vector_store === "ok"
                   ? styles.metricValGreen
                   : styles.metricValRed
               }
             >
-              {readiness?.vector_store === "connected" ? (
+              {readiness?.vector_store === "connected" || readiness?.vector_store === "ok" ? (
                 <CheckCircle size={14} />
               ) : (
                 <XCircle size={14} />
               )}
-              {readiness?.vector_store?.toUpperCase() || "CHECKING"}
+              {readiness?.vector_store === "connected" || readiness?.vector_store === "ok"
+                ? "CONNECTED"
+                : readiness?.vector_store?.toUpperCase() || "CHECKING"}
             </span>
           </div>
           <div style={styles.metricRow}>
@@ -159,7 +169,7 @@ export const HealthDiagnostics: React.FC = () => {
           </div>
           <div style={styles.metricRow}>
             <span style={styles.metricKey}>Fallback Gateway</span>
-            <span style={styles.metricVal}>Google Gemini · gemini-1.5-flash</span>
+            <span style={styles.metricVal}>Google Gemini · gemini-3.8-flash</span>
           </div>
           <div style={styles.metricRow}>
             <span style={styles.metricKey}>Hard Iteration Bound</span>

@@ -238,11 +238,11 @@ class GeminiGateway(LLMGateway):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model_name: str = "gemini-3.5-flash",
+        model_name: Optional[str] = None,
         timeout: Optional[int] = None,
     ):
         self.api_key = api_key or settings.GOOGLE_API_KEY
-        self.model_name = model_name
+        self.model_name = model_name or getattr(settings, "GEMINI_MODEL", "gemini-3.8-flash")
         self.timeout = timeout or settings.LLM_TIMEOUT_SECONDS
 
         if self.api_key and not self.api_key.startswith("YOUR_"):

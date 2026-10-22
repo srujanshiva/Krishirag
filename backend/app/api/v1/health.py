@@ -17,6 +17,7 @@ async def get_health():
     return {
         "status": "ok",
         "version": settings.VERSION,
+        "environment": settings.APP_ENV,
     }
 
 
@@ -28,21 +29,33 @@ async def get_readiness(db: AsyncSession = Depends(get_db)):
     """
     # 1. Check PostgreSQL
     db_status = "error"
+    doc_count = 0
     try:
         res = await db.execute(text("SELECT 1"))
         if res.scalar() == 1:
-            db_status = "ok"
+            db_status = "connected"
+            kb_res = await db.execute(text("SELECT count(*) FROM documents WHERE ingestion_status = 'completed'"))
+            doc_count = kb_res.scalar() or 0
     except Exception as e:
         logger.error(f"DB ready check error: {e}")
         db_status = "error"
 
     # 2. Check Qdrant Vector Store
     qdrant_status = "error"
+    vector_count = 0
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             resp = await client.get(f"{settings.QDRANT_URL.rstrip('/')}/healthz")
             if resp.status_code == 200:
-                qdrant_status = "ok"
+                qdrant_status = "connected"
+                try:
+                    col_resp = await client.get(
+                        f"{settings.QDRANT_URL.rstrip('/')}/collections/{settings.QDRANT_COLLECTION}"
+                    )
+                    if col_resp.status_code == 200:
+                        vector_count = col_resp.json().get("result", {}).get("points_count", 0)
+                except Exception:
+                    pass
     except Exception:
         qdrant_status = "error"
 
@@ -67,7 +80,6 @@ async def get_readiness(db: AsyncSession = Depends(get_db)):
             local_llm_status = "unreachable"
 
     if settings.OFFLINE_MODE:
-        # In offline mode, LLM is only configured if local LLM is ready
         llm_configured = (local_llm_status == "ready")
     elif settings.LLM_PROVIDER == "ollama":
         llm_configured = (local_llm_status == "ready")
@@ -80,21 +92,15 @@ async def get_readiness(db: AsyncSession = Depends(get_db)):
     elif settings.GROQ_API_KEY or settings.GOOGLE_API_KEY:
         llm_configured = True
 
-    # 4. Check Knowledge Base
-    kb_status = "empty"
-    try:
-        kb_res = await db.execute(text("SELECT count(*) FROM documents WHERE ingestion_status = 'completed'"))
-        doc_count = kb_res.scalar() or 0
-        if doc_count > 0:
-            kb_status = "populated"
-    except Exception:
-        kb_status = "empty"
-
     return {
-        "db": db_status,
+        "status": "ready" if db_status == "connected" and qdrant_status == "connected" else "not_ready",
+        "database": db_status,
+        "db": "ok" if db_status == "connected" else "error",
         "vector_store": qdrant_status,
+        "document_count": doc_count,
+        "vector_count": vector_count,
+        "knowledge_base": "populated" if doc_count > 0 else "empty",
         "llm_configured": llm_configured,
-        "knowledge_base": kb_status,
         "local_llm": local_llm_status,
         "offline_mode": settings.OFFLINE_MODE,
     }

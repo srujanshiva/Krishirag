@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     LLM_PROVIDER: str = "groq"
     GROQ_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: Optional[str] = None
+    GEMINI_MODEL: str = "gemini-3.8-flash"
     LLM_MODEL: str = "qwen/qwen3.8-27b"
     LLM_TIMEOUT_SECONDS: int = 15
     LLM_MAX_RETRIES: int = 2

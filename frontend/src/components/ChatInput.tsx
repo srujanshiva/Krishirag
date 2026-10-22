@@ -121,6 +121,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading }) => {
         console.warn("Speech recognition error:", event.error);
         if (event.error === "not-allowed") {
           setSpeechError("Microphone permission denied. Please allow microphone access in your browser settings.");
+        } else if (event.error === "audio-capture") {
+          setSpeechError("No microphone was detected. Please check your audio input device.");
         } else if (event.error !== "no-speech") {
           setSpeechError(`Voice input error: ${event.error}`);
         }
@@ -528,7 +530,9 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "center",
     gap: "0.35rem",
     backgroundColor: "var(--bg-elevated)",
-    border: "1px solid var(--border-strong)",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "var(--border-strong)",
     borderRadius: "10px",
     padding: "0.65rem 0.85rem",
     color: "var(--emerald-600)",
@@ -553,7 +557,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "0.74rem",
     color: "#dc2626",
     backgroundColor: "var(--danger-50)",
-    border: "1px solid var(--danger-100)",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "var(--danger-100)",
     padding: "0.35rem 0.65rem",
     borderRadius: "6px",
     marginTop: "0.2rem",
@@ -563,7 +569,9 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "var(--bg-elevated)",
-    border: "1px solid var(--border-strong)",
+    borderWidth: "1px",
+    borderStyle: "solid",
+    borderColor: "var(--border-strong)",
     borderRadius: "10px",
     padding: "0.65rem 0.75rem",
     color: "var(--emerald-600)",

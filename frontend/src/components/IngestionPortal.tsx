@@ -17,7 +17,12 @@ import { IngestionDocument, IngestionJob } from "../types";
 import { api } from "../lib/api";
 
 export const IngestionPortal: React.FC = () => {
-  const [token, setToken] = useState<string>("dev_admin_secret_token_12345");
+  const [token, setToken] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("krishirag_admin_token") || "local-dev-admin-token";
+    }
+    return "local-dev-admin-token";
+  });
   const [documents, setDocuments] = useState<IngestionDocument[]>([]);
   const [jobs, setJobs] = useState<IngestionJob[]>([]);
   const [loading, setLoading] = useState(false);
@@ -86,8 +91,13 @@ export const IngestionPortal: React.FC = () => {
           <input
             id="input-admin-token"
             type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
+            value={token || ""}
+            onChange={(e) => {
+              setToken(e.target.value);
+              if (typeof window !== "undefined") {
+                localStorage.setItem("krishirag_admin_token", e.target.value);
+              }
+            }}
             style={styles.tokenInput}
             placeholder="Enter ADMIN_TOKEN"
           />

@@ -1,7 +1,7 @@
 """Unit tests for claim-level faithfulness scorer and algorithmic grounding."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from backend.app.agent.orchestrator import AgentOrchestrator
 from backend.app.citations.faithfulness import (
@@ -83,10 +83,22 @@ async def test_orchestrator_returns_faithfulness_payload():
     )
     orchestrator = AgentOrchestrator(llm=mock_gateway)
 
-    result = await orchestrator.run(
-        question="What is the seed rate for System of Rice Intensification?",
-        crop="Rice",
+    mock_chunk = RetrievedChunk(
+        chunk_id="chunk-sri-1",
+        document_title="Rice Production Manual",
+        publisher="Kerala Agricultural University",
+        source_url="https://example.org/rice.pdf",
+        page_number=12,
+        section="Seed Rate",
+        chunk_text="System of Rice Intensification (SRI) requires a seed rate of 5 to 7 kg per hectare.",
+        score=0.88,
     )
+
+    with patch("backend.app.agent.tools.retriever.retrieve", return_value=[mock_chunk]):
+        result = await orchestrator.run(
+            question="What is the seed rate for System of Rice Intensification?",
+            crop="Rice",
+        )
 
     assert result.faithfulness is not None
     assert "score" in result.faithfulness
